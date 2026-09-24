@@ -19,8 +19,8 @@ jobs:
         run: cargo fmt --check
       - name: Test priority script
         run: node tests/9router_priority.test.js
-      - name: Test
-        run: cargo test --locked
+      - name: Test priority menu
+        run: cargo test --locked router_selector_shows_current_provider
       - name: Build release executable
         run: cargo build --release --locked
       - name: Upload executable
