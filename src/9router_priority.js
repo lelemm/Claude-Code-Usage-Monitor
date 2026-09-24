@@ -1,7 +1,7 @@
 const path = require("node:path");
 
 const priority = process.argv[1];
-if (priority !== "codex" && priority !== "claude") {
+if (priority !== "get" && priority !== "codex" && priority !== "claude") {
   throw new Error("Choose Codex or Claude");
 }
 
@@ -15,6 +15,7 @@ async function main() {
   if (!result.success) throw new Error(result.error);
 
   let matched = 0;
+  let selected;
   for (const combo of result.data.combos) {
     const models = combo.models;
     if (!Array.isArray(models) || models.length !== 2 ||
@@ -22,6 +23,12 @@ async function main() {
         !models.some(model => model.startsWith("cc/"))) continue;
 
     matched++;
+    if (priority === "get") {
+      const current = models[0].startsWith("cx/") ? "codex" : "claude";
+      if (selected && selected !== current) throw new Error("Combos have different priorities");
+      selected = current;
+      continue;
+    }
     const first = priority === "codex" ? "cx/" : "cc/";
     if (models[0].startsWith(first)) continue;
 
@@ -29,6 +36,7 @@ async function main() {
     if (!updated.success) throw new Error(`${combo.name}: ${updated.error}`);
   }
   if (!matched) throw new Error("No two-model cx/ and cc/ combos found");
+  if (priority === "get") return console.log(selected);
   console.log(`${priority} first in ${matched} combos`);
 }
 
