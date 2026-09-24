@@ -17,11 +17,19 @@ pub(super) fn show_context_menu_document(
         .map(|state| state.language)
         .unwrap_or_else(localization::detect_system_language);
     let data_context = context_menu_data_context(origin.as_ref());
-    let priority = if has_9router_selector(&document.items) {
+    let priority = if has_9router_action(&document.items) {
         crate::router_priority::get().ok()
     } else {
         None
     };
+    if let Some(provider) = priority.as_deref().and_then(ProviderId::from_key) {
+        let mut state = lock_state();
+        if let Some(state) = state.as_mut() {
+            state.router_priority = Some(provider);
+        }
+        drop(state);
+        render_layered();
+    }
     let mut actions = Vec::new();
     unsafe {
         let Ok(menu) = CreatePopupMenu() else {
@@ -58,32 +66,12 @@ pub(super) fn show_context_menu_document(
     }
 }
 
-fn has_9router_selector(items: &[ContextMenuItem]) -> bool {
+fn has_9router_action(items: &[ContextMenuItem]) -> bool {
     items.iter().any(|item| match &item.kind {
-        ContextMenuItemKind::Submenu { items } => {
-            is_9router_selector(item) || has_9router_selector(items)
-        }
+        ContextMenuItemKind::Action { action: ContextMenuAction::Set9routerPriority { .. } } => true,
+        ContextMenuItemKind::Submenu { items } => has_9router_action(items),
         _ => false,
     })
-}
-
-fn is_9router_selector(item: &ContextMenuItem) -> bool {
-    item.label == "9R"
-        && matches!(&item.kind, ContextMenuItemKind::Submenu { items } if items.iter().any(|child| matches!(
-            &child.kind,
-            ContextMenuItemKind::Action { action: ContextMenuAction::Set9routerPriority { .. } }
-        )))
-}
-
-fn priority_menu_label<'a>(label: &'a str, priority: Option<&str>) -> &'a str {
-    if label != "9R" {
-        return label;
-    }
-    match priority {
-        Some("codex") => "Codex",
-        Some("claude") => "Claude",
-        _ => "Select provider",
-    }
 }
 
 pub(super) fn context_menu_data_context(origin: Option<&(usize, String)>) -> DataContext {
@@ -142,14 +130,9 @@ unsafe fn append_context_menu_items(
                 append_context_menu_items(
                     submenu, items, language, context, origin, priority, actions,
                 );
-                let display_label = if is_9router_selector(item) {
-                    priority_menu_label(&item.label, priority)
-                } else {
-                    &item.label
-                };
                 let label = native_interop::wide_str(&context_menu::rendered_label(
                     language,
-                    display_label,
+                    &item.label,
                     context,
                 ));
                 let _ = AppendMenuW(
@@ -339,6 +322,13 @@ pub(super) fn execute_context_menu_action(
         ContextMenuAction::Set9routerPriority { provider } => {
             if let Err(error) = crate::router_priority::set(&provider) {
                 show_error_message(hwnd, "9router", &error);
+            } else {
+                let mut state = lock_state();
+                if let Some(state) = state.as_mut() {
+                    state.router_priority = ProviderId::from_key(&provider);
+                }
+                drop(state);
+                render_layered();
             }
         }
         ContextMenuAction::ToggleWidget => {
@@ -378,10 +368,10 @@ mod tests {
     use windows::Win32::UI::WindowsAndMessaging::{GetMenuItemCount, GetMenuItemID, GetSubMenu};
 
     #[test]
-    fn router_selector_shows_current_provider() {
+    fn router_priority_action_detected_in_menu() {
         let items = vec![ContextMenuItem::submenu(
             "router",
-            "9R",
+            "Priority",
             vec![ContextMenuItem::action(
                 "codex",
                 "Codex",
@@ -390,10 +380,7 @@ mod tests {
                 },
             )],
         )];
-        assert!(has_9router_selector(&items));
-        assert_eq!(priority_menu_label("9R", Some("codex")), "Codex");
-        assert_eq!(priority_menu_label("9R", Some("claude")), "Claude");
-        assert_eq!(priority_menu_label("9R", None), "Select provider");
+        assert!(has_9router_action(&items));
     }
 
     #[test]

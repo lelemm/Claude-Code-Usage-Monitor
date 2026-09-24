@@ -1322,6 +1322,7 @@ pub struct DataContext {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ThemeRuntime {
     providers: ProviderSet,
+    router_priority: Option<ProviderId>,
     pub poll_ok: bool,
     pub has_error: bool,
     pub language: LanguageId,
@@ -1339,6 +1340,7 @@ impl Default for ThemeRuntime {
     fn default() -> Self {
         Self {
             providers: ProviderSet::default(),
+            router_priority: None,
             poll_ok: true,
             has_error: false,
             language: LanguageId::English,
@@ -1369,6 +1371,7 @@ impl ThemeRuntime {
     pub fn from_providers(providers: ProviderSet) -> Self {
         Self {
             providers,
+            router_priority: None,
             poll_ok: true,
             has_error: false,
             language: LanguageId::English,
@@ -1382,6 +1385,11 @@ impl ThemeRuntime {
 
     pub fn with_nest(mut self, nest: SurfaceNest) -> Self {
         self.surface_nest = nest;
+        self
+    }
+
+    pub fn with_router_priority(mut self, provider: Option<ProviderId>) -> Self {
+        self.router_priority = provider;
         self
     }
 
@@ -1450,6 +1458,14 @@ impl DataContext {
         context.insert("true", 1.0);
         context.insert("false", 0.0);
         context.insert_string("app.version", env!("CARGO_PKG_VERSION"));
+        context.insert_string(
+            "router.priority",
+            match runtime.router_priority {
+                Some(ProviderId::Codex) => "Codex",
+                Some(ProviderId::Claude) => "Claude",
+                _ => "Provider",
+            },
+        );
         let mut version_parts = env!("CARGO_PKG_VERSION")
             .split(['.', '-', '+'])
             .filter_map(|part| part.parse::<f64>().ok());

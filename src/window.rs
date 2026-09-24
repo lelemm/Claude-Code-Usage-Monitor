@@ -127,6 +127,7 @@ struct AppState {
 
     custom_theme_enabled: bool,
     usage_countdown: bool,
+    router_priority: Option<ProviderId>,
     active_theme_path: Option<PathBuf>,
     active_theme: Option<ThemeDocument>,
     theme_clock_interval: Option<Duration>,
@@ -585,11 +586,20 @@ fn theme_runtime_from_state(state: &AppState) -> ThemeRuntime {
     };
     let opacity = state.floating_card_opacity.unwrap_or(85);
     ThemeRuntime::from_providers(state.providers)
+        .with_router_priority(state.router_priority)
         .with_poll_state(poll_ok, has_error)
         .with_language(state.language)
         .with_countdown(state.usage_countdown)
         .with_nest(nest)
         .with_floating_card_opacity(opacity)
+}
+
+fn theme_uses_router_priority(theme: &ThemeDocument) -> bool {
+    fn uses_priority(object: &theme_engine::SceneObject) -> bool {
+        matches!(&object.content, theme_engine::SceneContent::Text { template, .. } if template.contains("{router.priority}"))
+            || object.children.iter().any(uses_priority)
+    }
+    theme.surfaces.iter().any(uses_priority)
 }
 
 /// A transient outage can keep presenting the last real reading while its
@@ -1534,6 +1544,10 @@ fn apply_custom_theme(
             .and_then(|state| state.active_theme.clone()),
     };
     let loaded = loaded.unwrap_or_else(ThemeDocument::starter);
+    let router_priority = theme_uses_router_priority(&loaded)
+        .then(|| crate::router_priority::get().ok())
+        .flatten()
+        .and_then(|key| ProviderId::from_key(&key));
     let theme_clock_interval = loaded.current_time_refresh_interval();
     let tray_theme_uses_current_time = theme_tray_uses_current_time(&loaded);
     let old_hook = {
@@ -1542,6 +1556,7 @@ fn apply_custom_theme(
             return Err("Application is not ready".into());
         };
         state.custom_theme_enabled = true;
+        state.router_priority = router_priority;
         state.active_theme = Some(loaded);
         state.theme_clock_interval = theme_clock_interval;
         state.tray_theme_uses_current_time = tray_theme_uses_current_time;
@@ -1998,6 +2013,11 @@ pub fn run() {
                 (path, theme)
             });
         let custom_theme_enabled = true;
+        let router_priority = active_theme
+            .as_ref()
+            .filter(|theme| theme_uses_router_priority(theme))
+            .and_then(|_| crate::router_priority::get().ok())
+            .and_then(|key| ProviderId::from_key(&key));
         let theme_clock_interval = active_theme
             .as_ref()
             .and_then(ThemeDocument::current_time_refresh_interval);
@@ -2119,6 +2139,7 @@ pub fn run() {
                 window_state_timer_active: false,
                 custom_theme_enabled,
                 usage_countdown: settings.usage_countdown,
+                router_priority,
                 active_theme_path,
                 active_theme,
                 theme_clock_interval,

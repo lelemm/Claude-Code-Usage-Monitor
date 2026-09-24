@@ -1,6 +1,19 @@
 use super::*;
 
 #[test]
+fn router_priority_template_uses_runtime_provider() {
+    for (priority, expected) in [
+        (Some(ProviderId::Codex), "Codex "),
+        (Some(ProviderId::Claude), "Claude "),
+        (None, "Provider "),
+    ] {
+        let runtime = ThemeRuntime::default().with_router_priority(priority);
+        let context = DataContext::from_usage_with_runtime(None, &Canvas::default(), runtime);
+        assert_eq!(format_template("{router.priority} ", &context), expected);
+    }
+}
+
+#[test]
 fn account_bindings_validate_without_live_credentials_or_usage() {
     let mut theme = ThemeDocument::starter();
     theme.id = "account-validation-test".into();

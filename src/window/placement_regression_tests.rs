@@ -41,6 +41,7 @@ fn state_for(theme: ThemeDocument, placement: PlacementOverride) -> AppState {
         window_state_timer_active: false,
         custom_theme_enabled: true,
         usage_countdown: false,
+        router_priority: None,
         active_theme_path: None,
         active_theme: Some(theme),
         theme_clock_interval: None,
