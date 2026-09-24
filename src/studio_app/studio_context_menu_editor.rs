@@ -315,6 +315,9 @@ pub(super) fn context_menu_action_script(action: &ContextMenuAction) -> String {
     match action {
         ContextMenuAction::OpenDashboard => "open_dashboard()".into(),
         ContextMenuAction::Refresh => "refresh()".into(),
+        ContextMenuAction::Set9routerPriority { provider } => {
+            format!("set_9router_priority({})", string_arg(provider))
+        }
         ContextMenuAction::SetUpdateFrequency { seconds } => {
             format!("set_update_frequency({seconds})")
         }
@@ -402,6 +405,13 @@ pub(super) fn parse_context_menu_action_script(script: &str) -> Result<ContextMe
         return Ok(ContextMenuAction::SetLanguage {
             language: string_arg("set_language")?,
         });
+    }
+    if call_arg("set_9router_priority").is_some() {
+        let provider = string_arg("set_9router_priority")?;
+        if provider != "codex" && provider != "claude" {
+            return Err("Choose codex or claude".into());
+        }
+        return Ok(ContextMenuAction::Set9routerPriority { provider });
     }
     if call_arg("toggle_layer_render").is_some() {
         return Ok(ContextMenuAction::ToggleLayerRender {

@@ -277,6 +277,7 @@ pub(super) fn execute_context_menu_action(
         ContextMenuAction::CheckForUpdates => Some(IDM_VERSION_ACTION),
         ContextMenuAction::Exit => Some(2),
         ContextMenuAction::ToggleWidget
+        | ContextMenuAction::Set9routerPriority { .. }
         | ContextMenuAction::LegacyResetPosition
         | ContextMenuAction::ToggleLayerRender { .. }
         | ContextMenuAction::LayerActions { .. }
@@ -289,6 +290,11 @@ pub(super) fn execute_context_menu_action(
         return;
     }
     match action {
+        ContextMenuAction::Set9routerPriority { provider } => {
+            if let Err(error) = crate::router_priority::set(&provider) {
+                show_error_message(hwnd, "9router", &error);
+            }
+        }
         ContextMenuAction::ToggleWidget => {
             let target = lock_state()
                 .as_ref()

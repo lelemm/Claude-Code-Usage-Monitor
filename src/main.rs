@@ -14,6 +14,7 @@ mod models;
 mod native_interop;
 mod poller;
 mod providers;
+mod router_priority;
 mod studio_app;
 mod theme;
 mod theme_engine;

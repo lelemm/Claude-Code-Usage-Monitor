@@ -54,6 +54,10 @@ pub enum ContextMenuItemKind {
 pub enum ContextMenuAction {
     OpenDashboard,
     Refresh,
+    #[serde(rename = "set_9router_priority")]
+    Set9routerPriority {
+        provider: String,
+    },
     SetUpdateFrequency {
         #[serde(
             alias = "milliseconds",
@@ -254,6 +258,11 @@ fn validate_items(
                     }
                     ContextMenuAction::SetLanguage { language } if language.trim().is_empty() => {
                         errors.push(format!("{}.language cannot be empty", item.id));
+                    }
+                    ContextMenuAction::Set9routerPriority { provider }
+                        if provider != "codex" && provider != "claude" =>
+                    {
+                        errors.push(format!("{}.provider must be codex or claude", item.id));
                     }
                     ContextMenuAction::ToggleLayerRender { target } if target.trim().is_empty() => {
                         errors.push(format!("{}.target cannot be empty", item.id));
