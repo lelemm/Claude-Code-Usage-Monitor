@@ -68,7 +68,9 @@ pub(super) fn show_context_menu_document(
 
 fn has_9router_action(items: &[ContextMenuItem]) -> bool {
     items.iter().any(|item| match &item.kind {
-        ContextMenuItemKind::Action { action: ContextMenuAction::Set9routerPriority { .. } } => true,
+        ContextMenuItemKind::Action {
+            action: ContextMenuAction::Set9routerPriority { .. },
+        } => true,
         ContextMenuItemKind::Submenu { items } => has_9router_action(items),
         _ => false,
     })
